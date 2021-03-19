@@ -47,16 +47,16 @@ def train_and_evaluate(config_path):
     joblib.dump(lr, model_path)
 
     scores_file = config['report']['scores']
-    with open(scores_file, 'w') as f:
+    with open(scores_file, 'a') as f:
         scores = {
             'rmse': rmse,
             'mae': mae,
             'r2': r2
         }
         json.dump(scores, f, indent=4)
-
+    ##
     params_file = config['report']['params']
-    with open(params_file, 'w') as f:
+    with open(params_file, 'a') as f:
         params = {
             'alpha': alpha,
             'l1_ratio': l1_ratio
