@@ -46,6 +46,23 @@ def train_and_evaluate(config_path):
     model_path = os.path.join(model_dir, "model.joblib")
     joblib.dump(lr, model_path)
 
+    scores_file = config['report']['scores']
+    with open(scores_file, 'w') as f:
+        scores = {
+            'rmse': rmse,
+            'mae': mae,
+            'r2': r2
+        }
+        json.dump(scores, f, indent=4)
+
+    params_file = config['report']['params']
+    with open(params_file, 'w') as f:
+        params = {
+            'alpha': alpha,
+            'l1_ratio': l1_ratio
+        }
+        json.dump(params, f, indent=4)
+
 
 def evaluate_metrics(actual_y, predicted_y):
     rmse = np.sqrt(mean_absolute_error(actual_y, predicted_y))
