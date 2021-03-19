@@ -3,4 +3,5 @@ dvc[gdrive]
 sklearn
 pyyaml~=5.4.1
 pytest
-tox
+flake8
+flask
