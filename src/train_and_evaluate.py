@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from get_data import read_params
 import argparse
 import joblib
-import json
+import mlflow
 
 
 def train_and_evaluate(config_path):
@@ -31,37 +31,33 @@ def train_and_evaluate(config_path):
 
     train_x = train.drop(target, axis=1)
     test_x = test.drop(target, axis=1)
+    ####### MF FLow changes Starts ########
+    mlflow_config = config['mlflow_config']
+    remote_server_uri = mlflow_config['remote_server_uri']
+    mlflow.set_tracking_uri(remote_server_uri)
+    mlflow.set_experiment(mlflow_config['experiment_name'])
+    with mlflow.start_run(run_name=mlflow_config['run_name']):
+        lr = ElasticNet(alpha=alpha,
+                        l1_ratio=l1_ratio,
+                        random_state=random_state)
+        lr.fit(train_x, train_y)
+        predicted_y = lr.predict(test_x)
+        (rmse, mae, r2) = evaluate_metrics(test_y, predicted_y)
 
-    lr = ElasticNet(alpha=alpha,
-                    l1_ratio=l1_ratio,
-                    random_state=random_state)
-    lr.fit(train_x, train_y)
-    predicted_y = lr.predict(test_x)
-    (rmse, mae, r2) = evaluate_metrics(test_y, predicted_y)
-    print("Elasticnet model (alpha=%f, l1_ratio=%f):" % (alpha, l1_ratio))
-    print("  RMSE: %s" % rmse)
-    print("  MAE: %s" % mae)
-    print("  R2: %s" % r2)
-    os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, "model.joblib")
-    joblib.dump(lr, model_path)
+        mlflow.log_param('alpha', alpha)
+        mlflow.log_param('l1_ratio', l1_ratio)
+        mlflow.log_metric('rmse', rmse)
+        mlflow.log_metric('mae', mae)
+        mlflow.log_metric('r2', r2)
+        tracking_url_type_store = urlparse(mlflow.get_artifact_uri()).scheme
 
-    scores_file = config['report']['scores']
-    with open(scores_file, 'a') as f:
-        scores = {
-            'rmse': rmse,
-            'mae': mae,
-            'r2': r2
-        }
-        json.dump(scores, f, indent=4)
-    ##
-    params_file = config['report']['params']
-    with open(params_file, 'a') as f:
-        params = {
-            'alpha': alpha,
-            'l1_ratio': l1_ratio
-        }
-        json.dump(params, f, indent=4)
+        if tracking_url_type_store != "file":
+            mlflow.sklearn.log_model(
+                lr,
+                "model",
+                registered_model_name=mlflow_config["registered_model_name"])
+        else:
+            mlflow.sklearn.load_model(lr, "model")
 
 
 def evaluate_metrics(actual_y, predicted_y):
